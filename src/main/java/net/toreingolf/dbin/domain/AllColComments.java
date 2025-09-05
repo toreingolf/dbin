@@ -10,10 +10,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 @Entity
-public class AllConsColumns {
+public class AllColComments {
     @EmbeddedId
-    private IdConstraintName id;
-    private String tableName;
-    private String columnName;
-    private long position;
+    private IdTableNameColumnName id;
+    private String comments;
 }

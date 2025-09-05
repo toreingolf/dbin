@@ -7,6 +7,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_OBJECTS;
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDATA;
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDEF;
+
 @Controller()
 @Slf4j
 public class DbinController {
@@ -26,19 +30,27 @@ public class DbinController {
         return dbinManager.getObjects(DEFAULT_USER, DEFAULT_OBJECT_TYPE);
     }
 
-    @GetMapping("/objects")
+    @GetMapping(METHOD_OBJECTS)
     public @ResponseBody String getObjects(
             @RequestParam(name = "owner", required = false) String owner,
             @RequestParam(name = "objectType", required = false) String objectType) {
-        log.info("get objects of type {} for owner {}", objectType, owner);
+        log.info("objects of type {} for owner {}", objectType, owner);
         return dbinManager.getObjects(owner, objectType == null ? DEFAULT_OBJECT_TYPE : objectType);
     }
 
-    @GetMapping("/tabDef")
+    @GetMapping(METHOD_TABDEF)
     public @ResponseBody String getTabDef(
             @RequestParam(name = "owner", required = false) String owner,
             @RequestParam(name = "tableName", required = false) String tableName) {
-        log.info("get tabDef for table {} owned by {}", tableName, owner);
+        log.info("tabDef for table {} owned by {}", tableName, owner);
         return dbinManager.getTabDef(owner, tableName);
+    }
+
+    @GetMapping(METHOD_TABDATA)
+    public @ResponseBody String tabData(
+            @RequestParam(name = "owner", required = false) String owner,
+            @RequestParam(name = "tableName", required = false) String tableName) {
+        log.info("tabData for table {} owned by {}", tableName, owner);
+        return dbinManager.getTabData(owner, tableName);
     }
 }

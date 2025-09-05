@@ -2,40 +2,25 @@ package net.toreingolf.dbin.manager;
 
 import lombok.extern.slf4j.Slf4j;
 import net.toreingolf.dbin.domain.AllConsColumns;
-import net.toreingolf.dbin.domain.AllConsColumnsId;
-import net.toreingolf.dbin.domain.AllConstraints;
 import net.toreingolf.dbin.domain.AllObjects;
 import net.toreingolf.dbin.domain.AllTabColumns;
-import net.toreingolf.dbin.domain.AllTabCommentsId;
+import net.toreingolf.dbin.domain.ConstraintTypeComparator;
+import net.toreingolf.dbin.domain.IdConstraintName;
+import net.toreingolf.dbin.domain.IdTableName;
+import net.toreingolf.dbin.domain.IdTableNameColumnName;
+import net.toreingolf.dbin.persistence.AllColCommentsRepo;
 import net.toreingolf.dbin.persistence.AllConsColumnsRepo;
 import net.toreingolf.dbin.persistence.AllConstraintsRepo;
 import net.toreingolf.dbin.persistence.AllObjectsRepo;
 import net.toreingolf.dbin.persistence.AllTabColumnsRepo;
 import net.toreingolf.dbin.persistence.AllTabCommentsRepo;
+import net.toreingolf.dbin.persistence.DbinRepo;
 import net.toreingolf.dbin.ui.DbinUi;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-
-class ConstraintTypeComparator implements Comparator<AllConstraints> {
-    private int sortOrder(AllConstraints constraint) {
-        return switch (constraint.getConstraintType()) {
-            case "P" -> 1;
-            case "U" -> 2;
-            case "R" -> 3;
-            case "C" -> 4;
-            default -> throw new IllegalStateException("Unexpected value: " + constraint.getConstraintType());
-        };
-    }
-
-    @Override
-    public int compare(AllConstraints o1, AllConstraints o2) {
-        return Integer.compare(sortOrder(o1), sortOrder(o2));
-    }
-}
 
 @Service
 @Slf4j
@@ -44,8 +29,10 @@ public class DbinManager {
     private final AllObjectsRepo allObjectsRepo;
     private final AllTabColumnsRepo allTabColumnsRepo;
     private final AllTabCommentsRepo allTabCommentsRepo;
+    private final AllColCommentsRepo allColCommentsRepo;
     private final AllConstraintsRepo allConstraintsRepo;
     private final AllConsColumnsRepo allConsColumnsRepo;
+    private final DbinRepo dbinRepo;
 
     private final DbinUi ui;
 
@@ -55,20 +42,24 @@ public class DbinManager {
     public DbinManager(AllObjectsRepo allObjectsRepo,
                        AllTabColumnsRepo allTabColumnsRepo,
                        AllTabCommentsRepo allTabCommentsRepo,
+                       AllColCommentsRepo allColCommentsRepo,
                        AllConstraintsRepo allConstraintsRepo,
                        AllConsColumnsRepo allConsColumnsRepo,
+                       DbinRepo dbinRepo,
                        DbinUi dbinUi) {
         this.allObjectsRepo = allObjectsRepo;
         this.allTabColumnsRepo = allTabColumnsRepo;
         this.allTabCommentsRepo = allTabCommentsRepo;
+        this.allColCommentsRepo = allColCommentsRepo;
         this.allConstraintsRepo = allConstraintsRepo;
         this.allConsColumnsRepo = allConsColumnsRepo;
+        this.dbinRepo = dbinRepo;
         this.ui = dbinUi;
     }
 
     public String getObjects(String owner, String objectType) {
 
-        log.info("get objects of type {} for owner {}", objectType, owner);
+        log.info("objects of type {} for owner {}", objectType, owner);
 
         String title = "Objects of type " + objectType + (owner == null ? "" : " owned by " + owner);
         List<AllObjects> objects = allObjectsRepo.findByOwnerAndObjectType(owner, objectType, OBJECT_SORT);
@@ -77,11 +68,12 @@ public class DbinManager {
         ui.header(title);
 
         ui.tableOpen(0, 0, 4);
-        ui.columnHeaders("Name", "Created", "Updated", "Status", "Comment");
+        ui.columnHeaders("Name", "Rows", "Created", "Updated", "Status", "Comment");
         ui.resetRowCount();
         objects.forEach(o -> {
             ui.tableRowOpen();
             ui.tableData(ui.tabDefLink(owner, o.getObjectName()));
+            ui.tableData(tabDataLink(owner, o.getObjectName()), "align=right");
             ui.tableData(ui.dateString(o.getCreated()));
             ui.tableData(ui.dateString(o.getLastDdlTime()));
             ui.tableData(o.getStatus());
@@ -97,13 +89,13 @@ public class DbinManager {
     }
 
     public String getTabDef(String owner, String tableName) {
-        log.info("get tabDef for table {} owned by {}", tableName, owner);
+        log.info("tabDef for table {} owned by {}", tableName, owner);
 
         String title = "Table " + owner + "." + tableName;
         List<AllTabColumns> columns = allTabColumnsRepo.findByOwnerAndTableName(owner, tableName, COLUMN_SORT);
 
         ui.htmlOpen(title);
-        ui.header(ui.tableHeader(owner, tableName, "tabData"));
+        ui.header(ui.tableHeader(owner, tableName, DbinUi.METHOD_TABDATA));
 
         var table = allObjectsRepo.findByOwnerAndObjectName(owner, tableName);
 
@@ -112,7 +104,7 @@ public class DbinManager {
         ui.tableOpen(0, 0, 4);
         ui.detailRow("Created", table.getCreated());
         ui.detailRow("Updated", table.getLastDdlTime());
-        ui.detailRow("Rows", "");
+        ui.detailRow("Rows", tabDataLink(owner, tableName));
         ui.detailRow("Comment", getTableComments(owner, tableName));
         ui.tableClose();
 
@@ -127,6 +119,8 @@ public class DbinManager {
             ui.tableData(c.getDataType());
             ui.tableData(c.getDataLength());
             ui.tableData(c.getDataDefault());
+            ui.tableData("");
+            ui.tableData(getTableColumnComments(owner, tableName, c.getColumnName()));
             ui.tableRowClose();
         });
         ui.tableClose();
@@ -150,9 +144,9 @@ public class DbinManager {
                 ui.tableData(getConstraintColumns(owner, c.getConstraintName()));
                 if ("R".equals(c.getConstraintType())) {
                     ui.tableData(
-                            ui.tabDefLink(c.getROwner(), getConstraintTarget(owner, c.getConstraintName()))
+                            ui.tabDefLink(c.getTargetOwner(), getConstraintTarget(owner, c.getConstraintName()))
                                     + "("
-                                    + getConstraintColumns(c.getROwner(), c.getRConstraintName())
+                                    + getConstraintColumns(c.getTargetOwner(), c.getTargetConstraintName())
                                     + ")"
                     );
                 }
@@ -162,19 +156,74 @@ public class DbinManager {
         ui.tableClose();
         ui.showRowCount();
 
+        showReferers(owner, getPrimaryKeyName(owner, tableName), null);
+
         ui.htmlClose();
 
         return ui.getPage();
     }
 
+    private void showReferers(String owner, String pkName, String pkValue) {
+        ui.resetRowCount();
+        var constraints = allConstraintsRepo.findByOwnerAndTargetConstraintNameAndConstraintType(owner, pkName, "R");
+        constraints.forEach(c -> {
+            if (ui.getRowCount() == 0) {
+                ui.header("Referers", 3);
+                if (pkValue != null) {
+                    ui.tableOpen(1, 0, 2);
+                } else {
+                    ui.tableOpen(0, 0, 4);
+                }
+                ui.columnHeaders("Table name", "Constraint name", "Column name");
+            }
+
+            var columns = getConstraintColumns(owner, c.getConstraintName());
+
+            ui.tableRowOpen();
+            ui.tableData(tabDefLink(owner, c.getTableName()));
+            ui.tableData(c.getConstraintName());
+            ui.tableData(columns);
+            ui.tableRowClose();
+        });
+
+        if (ui.getRowCount() > 0) {
+            ui.tableClose();
+            ui.showRowCount();
+        }
+    }
+
+    public String getTabData(String owner, String tableName) {
+        log.info("tabData for table {} owned by {}", tableName, owner);
+
+        String title = "Table " + owner + "." + tableName;
+
+        ui.htmlOpen(title);
+        ui.header(ui.tableHeader(owner, tableName, DbinUi.METHOD_TABDEF));
+
+        showReferers(owner, null, null);
+
+        ui.htmlClose();
+
+        return ui.getPage();
+    }
+
+    private String getPrimaryKeyName(String owner, String tableName) {
+        var pk = allConstraintsRepo.findByOwnerAndTableNameAndConstraintType(owner, tableName, "P");
+        return pk != null ? pk.getConstraintName() : "";
+    }
+
     private String getTableComments(String owner, String tableName) {
         log.info("get comments for {}.{}", owner, tableName);
-        return allTabCommentsRepo.findById(new AllTabCommentsId(owner, tableName)).getComments();
+        return allTabCommentsRepo.findById(new IdTableName(owner, tableName)).getComments();
+    }
+
+    private String getTableColumnComments(String owner, String tableName, String columnName) {
+        return allColCommentsRepo.findById(new IdTableNameColumnName(owner, tableName, columnName)).getComments();
     }
 
     private String getConstraintColumns(String owner, String constraintName) {
         log.info("get columns for constraint {}.{}", owner, constraintName);
-        return allConsColumnsRepo.findById(new AllConsColumnsId(owner, constraintName))
+        return allConsColumnsRepo.findById(new IdConstraintName(owner, constraintName))
                 .stream()
                 .map(AllConsColumns::getColumnName)
                 .collect(Collectors.joining(", "));
@@ -194,7 +243,7 @@ public class DbinManager {
         log.info("find target for constraint {}.{}", owner, constraintName);
         var target = allConstraintsRepo.findByOwnerAndConstraintName(owner, constraintName);
         log.info("target: {}", target);
-        return allConstraintsRepo.findByOwnerAndConstraintName(owner, target.getRConstraintName()).getTableName();
+        return allConstraintsRepo.findByOwnerAndConstraintName(owner, target.getTargetConstraintName()).getTableName();
     }
 
     private String getNullableDescription(String nullable) {
@@ -203,5 +252,21 @@ public class DbinManager {
             case "Y" -> "";
             default -> throw new IllegalStateException("Unexpected value: " + nullable);
         };
+    }
+
+    private String tabDefLink(String owner, String tableName) {
+        return ui.anchor(ui.tabDefUrl(owner, tableName), tableName);
+    }
+
+    private String tabDataLink(String owner, String tableName) {
+        return ui.anchor(ui.tabDataUrl(owner, tableName), getTableSize(owner, tableName));
+    }
+
+    private Long getTableSize(String owner, String tableName) {
+        return dbinRepo.getTableSize(owner, tableName);
+    }
+
+    private String getTableSizeFormatted(long size) {
+        return size + " row" + (size > 0 ? "s" : "");
     }
 }

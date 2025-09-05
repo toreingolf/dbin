@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-public class AllTabCommentsId {
+public class IdTableName {
     private String owner;
     private String tableName;
 }

@@ -7,7 +7,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-public class AllConsColumnsId {
+public class IdTableNameColumnName {
     private String owner;
-    private String constraintName;
+    private String tableName;
+    private String columnName;
 }

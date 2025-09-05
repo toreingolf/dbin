@@ -1,5 +1,6 @@
 package net.toreingolf.dbin.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,8 @@ public class AllConstraints {
     private Long originConId;
     private String constraintType;
     private String searchCondition;
-    private String rOwner;
-    private String rConstraintName;
+    @Column(name = "R_OWNER")
+    private String targetOwner;
+    @Column(name = "R_CONSTRAINT_NAME")
+    private String targetConstraintName;
 }

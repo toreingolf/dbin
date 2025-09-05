@@ -6,7 +6,7 @@ NOTE: This project is under construction!
 
 ### Start the app
 1. Run DbinApplication.java from IntelliJ (or with "mvn spring-boot:run")
-2. Open a browser and go to http://localhost:8080/objects?owner=SCOTT&objectType=TABLE
+2. Open a browser and go to http://localhost:8091/objects?owner=SCOTT&objectType=TABLE
 
 ### More information
 https://toreingolf.net/oracle/dbin/

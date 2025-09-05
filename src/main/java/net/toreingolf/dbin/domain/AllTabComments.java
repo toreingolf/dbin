@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 @Entity
 public class AllTabComments {
     @EmbeddedId
-    private AllTabCommentsId id;
+    private IdTableName id;
     private String comments;
 }

@@ -1,5 +1,6 @@
 package net.toreingolf.dbin.ui;
 
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 
 import java.text.SimpleDateFormat;
@@ -8,6 +9,10 @@ import java.util.Date;
 
 @Component
 public class DbinUi {
+
+    public static final String METHOD_OBJECTS = "objects";
+    public static final String METHOD_TABDEF = "tabDef";
+    public static final String METHOD_TABDATA = "tabData";
 
     private static final String CSS = """
 <style type="text/css">
@@ -26,7 +31,9 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
     private static final SimpleDateFormat FORMATTER = new SimpleDateFormat("dd.MM.yyyy HH:mm");
 
     private StringBuilder page;
-    private int rowCount = 0;
+
+    @Getter
+    private long rowCount = 0;
 
     public String getPage() {
         return page.toString();
@@ -102,10 +109,16 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
         Arrays.stream(headers).forEach(this::columnHeader);
     }
 
+    public void tableData(String text, String attr) {
+        page.append("<td");
+        if (attr != null) {
+            page.append(" ").append(attr);
+        }
+        page.append(">").append(text == null ? "" : text).append("</td>");
+    }
+
     public void tableData(String text) {
-        page.append("<td>");
-        page.append(text == null ? "" : text);
-        page.append("</td>");
+        tableData(text, null);
     }
 
     public void detailRow(String prompt, String value) {
@@ -132,10 +145,13 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
     }
 
     public String tableHeader(String owner, String tableName, String method) {
-        return "Table <a href=\"objects"
-                + addParameter("owner", owner, "?")
-                + addParameter("objectType", "TABLE")
-                + "\">" + owner + "</a>."
+        return "TABLE "
+                + anchor(METHOD_OBJECTS
+                        + addParameter("owner", owner, "?")
+                        + addParameter("objectType", "TABLE")
+                , owner
+                )
+                + "."
                 + tabLink(owner, tableName, method);
     }
 
@@ -155,24 +171,37 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
         return addParameter(name, value, "&");
     }
 
-    public String objLink(String owner, String objectName, String method, String parameterName) {
-        return "<a href=\""
-                + method
+    public String anchor(String url, String text) {
+        return "<a href=\"" + url + "\">" + text + "</a>";
+    }
+
+    public String anchor(String url, Long number) {
+        return anchor(url, String.valueOf(number));
+    }
+
+    public String objUrl(String owner, String objectName, String method, String parameterName) {
+        return method
                 + addParameter("owner", owner, "?")
-                + addParameter(parameterName, objectName) + "\">"
-                + objectName
-                + "</a>";
+                + addParameter(parameterName, objectName);
+    }
+
+    public String tabUrl(String owner, String tableName, String method) {
+        return objUrl(owner, tableName, method, "tableName");
+    }
+
+    public String tabDefUrl(String owner, String tableName) {
+        return tabUrl(owner, tableName, METHOD_TABDEF);
     }
 
     public String tabLink(String owner, String tableName, String method) {
-        return objLink(owner, tableName, method, "tableName");
+        return anchor(tabUrl(owner, tableName, method), tableName);
+    }
+
+    public String tabDataUrl(String owner, String tableName) {
+        return tabUrl(owner, tableName, METHOD_TABDATA);
     }
 
     public String tabDefLink(String owner, String tableName) {
-        return tabLink(owner, tableName, "tabDef");
-    }
-
-    public String tabDataLink(String owner, String tableName) {
-        return tabLink(owner, tableName, "tabData");
+        return anchor(tabDefUrl(owner, tableName), tableName);
     }
 }
