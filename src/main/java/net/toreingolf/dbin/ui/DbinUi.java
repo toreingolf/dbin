@@ -14,6 +14,8 @@ public class DbinUi {
     public static final String METHOD_TABDEF = "tabDef";
     public static final String METHOD_TABDATA = "tabData";
 
+    public static final String DATETIME_FORMAT = "dd.MM.yyyy HH:mm";
+
     private static final String CSS = """
 <style type="text/css">
 <!--
@@ -28,7 +30,7 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
 </style>
 """;
 
-    private static final SimpleDateFormat FORMATTER = new SimpleDateFormat("dd.MM.yyyy HH:mm");
+    private static final SimpleDateFormat FORMATTER = new SimpleDateFormat(DATETIME_FORMAT);
 
     private StringBuilder page;
 
@@ -84,6 +86,7 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
         page.append(" cellpadding=");
         page.append(cellPadding);
         page.append(">");
+        resetRowCount();
     }
 
     public void tableClose() {
@@ -96,7 +99,7 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
 
     public void tableRowClose() {
         page.append("</tr>");
-        rowCount++;
+        increaseRowCount();
     }
 
     public void columnHeader(String header) {
@@ -130,6 +133,10 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
 
     public void detailRow(String prompt, Date date) {
         detailRow(prompt, FORMATTER.format(date));
+    }
+
+    public void increaseRowCount() {
+        rowCount++;
     }
 
     public void resetRowCount() {

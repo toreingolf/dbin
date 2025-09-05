@@ -36,8 +36,15 @@ public class DbinManager {
 
     private final DbinUi ui;
 
-    public static Sort OBJECT_SORT = Sort.by(Sort.Direction.ASC, "objectName");
-    public static Sort COLUMN_SORT = Sort.by(Sort.Direction.ASC, "columnId");
+    private static final Sort OBJECT_SORT = Sort.by(Sort.Direction.ASC, "objectName");
+    private static final Sort COLUMN_SORT = Sort.by(Sort.Direction.ASC, "columnId");
+
+    private static final String DATE_TYPE_1	= "DATE";
+    private static final String DATE_TYPE_2	= "TIMESTAMP(6)";
+    private static final String DATE_TYPE_3	= "TIMESTAMP(6) WITH TIME ZONE";
+    private static final List<String> DATE_TYPES = List.of(DATE_TYPE_1, DATE_TYPE_2, DATE_TYPE_3);
+
+    public static final String DATETIME_FORMAT_SQL = "dd.mm.yyyy hh24:mi";
 
     public DbinManager(AllObjectsRepo allObjectsRepo,
                        AllTabColumnsRepo allTabColumnsRepo,
@@ -69,7 +76,6 @@ public class DbinManager {
 
         ui.tableOpen(0, 0, 4);
         ui.columnHeaders("Name", "Rows", "Created", "Updated", "Status", "Comment");
-        ui.resetRowCount();
         objects.forEach(o -> {
             ui.tableRowOpen();
             ui.tableData(ui.tabDefLink(owner, o.getObjectName()));
@@ -92,7 +98,6 @@ public class DbinManager {
         log.info("tabDef for table {} owned by {}", tableName, owner);
 
         String title = "Table " + owner + "." + tableName;
-        List<AllTabColumns> columns = allTabColumnsRepo.findByOwnerAndTableName(owner, tableName, COLUMN_SORT);
 
         ui.htmlOpen(title);
         ui.header(ui.tableHeader(owner, tableName, DbinUi.METHOD_TABDATA));
@@ -108,10 +113,11 @@ public class DbinManager {
         ui.detailRow("Comment", getTableComments(owner, tableName));
         ui.tableClose();
 
+        List<AllTabColumns> columns = allTabColumnsRepo.findByOwnerAndTableName(owner, tableName, COLUMN_SORT);
+
         ui.header("Columns", 3);
         ui.tableOpen(0, 0, 4);
         ui.columnHeaders("Column Name", "Null?", "Data Type", "Length", "Default", "Search Criteria", "Comments");
-        ui.resetRowCount();
         columns.forEach(c -> {
             ui.tableRowOpen();
             ui.tableData(c.getColumnName());
@@ -133,7 +139,6 @@ public class DbinManager {
 
         ui.tableOpen(0, 0, 4);
         ui.columnHeaders("Constraint Name", "Constraint Type", "Column(s) / Check", "Target");
-        ui.resetRowCount();
         constraints.forEach(c -> {
             ui.tableRowOpen();
             ui.tableData(c.getConstraintName());
@@ -156,19 +161,62 @@ public class DbinManager {
         ui.tableClose();
         ui.showRowCount();
 
-        showReferers(owner, getPrimaryKeyName(owner, tableName), null);
+        showReferrers(owner, getPrimaryKeyName(owner, tableName), null);
 
         ui.htmlClose();
 
         return ui.getPage();
     }
 
-    private void showReferers(String owner, String pkName, String pkValue) {
+    public String getTabData(String owner, String tableName) {
+        log.info("tabData for table {} owned by {}", tableName, owner);
+
+        String title = "Table " + owner + "." + tableName;
+
+        ui.htmlOpen(title);
+        ui.header(ui.tableHeader(owner, tableName, DbinUi.METHOD_TABDEF) + "<br>");
+
+        ui.tableOpen(1, 0, 2);
+
+        List<AllTabColumns> columns = allTabColumnsRepo.findByOwnerAndTableName(owner, tableName, COLUMN_SORT);
+        StringBuilder sql = new StringBuilder("select ");
+
+        ui.tableRowOpen();
+        columns.forEach(c -> {
+            ui.columnHeader(c.getColumnName());
+            if (ui.getRowCount() > 0) {
+                sql.append(", ");
+            }
+            if (DATE_TYPES.contains(c.getDataType())) {
+                sql.append("to_char(\"").append(c.getColumnName()).append("\", '").append(DATETIME_FORMAT_SQL).append("')");
+            } else {
+                sql.append("\"").append(c.getColumnName()).append("\"");
+            }
+            ui.increaseRowCount();
+        });
+        ui.tableRowClose();
+
+        sql.append(" from ").append(owner).append(".\"").append(tableName).append("\" order by 1");
+
+        // fetch and display data
+
+        ui.tableClose();
+
+        ui.p("<p>SQL: " + sql);
+
+        showReferrers(owner, getPrimaryKeyName(owner, tableName), null);
+
+        ui.htmlClose();
+
+        return ui.getPage();
+    }
+
+    private void showReferrers(String owner, String pkName, String pkValue) {
         ui.resetRowCount();
         var constraints = allConstraintsRepo.findByOwnerAndTargetConstraintNameAndConstraintType(owner, pkName, "R");
         constraints.forEach(c -> {
             if (ui.getRowCount() == 0) {
-                ui.header("Referers", 3);
+                ui.header("Referrers", 3);
                 if (pkValue != null) {
                     ui.tableOpen(1, 0, 2);
                 } else {
@@ -190,21 +238,6 @@ public class DbinManager {
             ui.tableClose();
             ui.showRowCount();
         }
-    }
-
-    public String getTabData(String owner, String tableName) {
-        log.info("tabData for table {} owned by {}", tableName, owner);
-
-        String title = "Table " + owner + "." + tableName;
-
-        ui.htmlOpen(title);
-        ui.header(ui.tableHeader(owner, tableName, DbinUi.METHOD_TABDEF));
-
-        showReferers(owner, null, null);
-
-        ui.htmlClose();
-
-        return ui.getPage();
     }
 
     private String getPrimaryKeyName(String owner, String tableName) {
