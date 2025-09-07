@@ -158,6 +158,7 @@ public class DbinManager {
             }
             ui.tableRowClose();
         });
+
         ui.tableClose();
         ui.showRowCount();
 
@@ -188,7 +189,13 @@ public class DbinManager {
                 sql.append(", ");
             }
             if (DATE_TYPES.contains(c.getDataType())) {
-                sql.append("to_char(\"").append(c.getColumnName()).append("\", '").append(DATETIME_FORMAT_SQL).append("')");
+                sql.append("to_char(\"")
+                        .append(c.getColumnName())
+                        .append("\", '")
+                        .append(DATETIME_FORMAT_SQL)
+                        .append("') as \"")
+                        .append(c.getColumnName())
+                        .append("\"");
             } else {
                 sql.append("\"").append(c.getColumnName()).append("\"");
             }
@@ -198,11 +205,18 @@ public class DbinManager {
 
         sql.append(" from ").append(owner).append(".\"").append(tableName).append("\" order by 1");
 
-        // fetch and display data
+        var data = dbinRepo.getData(columns, sql.toString());
+        log.info("data: {}", data);
+
+        ui.resetRowCount();
+        data.forEach(row -> {
+            ui.tableRowOpen();
+            row.forEach(ui::tableData);
+            ui.tableRowClose();
+        });
 
         ui.tableClose();
-
-        ui.p("<p>SQL: " + sql);
+        ui.showRowCount();
 
         showReferrers(owner, getPrimaryKeyName(owner, tableName), null);
 
@@ -297,9 +311,5 @@ public class DbinManager {
 
     private Long getTableSize(String owner, String tableName) {
         return dbinRepo.getTableSize(owner, tableName);
-    }
-
-    private String getTableSizeFormatted(long size) {
-        return size + " row" + (size > 0 ? "s" : "");
     }
 }
