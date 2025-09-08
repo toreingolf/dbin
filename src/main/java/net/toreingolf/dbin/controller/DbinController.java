@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.util.List;
+
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_OBJECTS;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDATA;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDEF;
@@ -50,9 +52,11 @@ public class DbinController {
     @GetMapping(METHOD_TABDATA)
     public @ResponseBody String tabData(
             @RequestParam(name = "owner", required = false) String owner,
-            @RequestParam(name = "tableName", required = false) String tableName) {
+            @RequestParam(name = "tableName", required = false) String tableName,
+            @RequestParam(name = "columnName", required = false) List<String> columnName,
+            @RequestParam(name = "columnValue", required = false) List<String> columnValue) {
         log.info("tabData for table {} owned by {}", tableName, owner);
-        return dbinManager.getTabData(owner, tableName);
+        return dbinManager.getTabData(owner, tableName, columnName, columnValue);
     }
 
     @GetMapping(METHOD_USERS)

@@ -38,6 +38,9 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
     @Getter
     private long rowCount = 0;
 
+    @Getter
+    private int columnIndex = 0;
+
     public String getPage() {
         return page.toString();
     }
@@ -153,6 +156,14 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
     public void showRowCount(long value) {
         rowCount = value;
         showRowCount();
+    }
+
+    public void increaseColumnIndex() {
+        columnIndex++;
+    }
+
+    public void resetColumnIndex() {
+        columnIndex = 0;
     }
 
     public String tableHeader(String owner, String tableName, String method) {

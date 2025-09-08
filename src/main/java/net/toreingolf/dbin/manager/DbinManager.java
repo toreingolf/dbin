@@ -19,6 +19,7 @@ import net.toreingolf.dbin.ui.DbinUi;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -174,7 +175,7 @@ public class DbinManager {
         return ui.getPage();
     }
 
-    public String getTabData(String owner, String tableName) {
+    public String getTabData(String owner, String tableName, List<String> columnName, List<String> columnValue) {
         log.info("tabData for table {} owned by {}", tableName, owner);
 
         String title = "Table " + owner + "." + tableName;
@@ -186,11 +187,12 @@ public class DbinManager {
 
         List<AllTabColumns> columns = allTabColumnsRepo.findByOwnerAndTableName(owner, tableName, COLUMN_SORT);
         StringBuilder sql = new StringBuilder("select ");
+        List<String> columnNames = new ArrayList<>();
 
-        ui.tableRowOpen();
+        ui.resetColumnIndex();
         columns.forEach(c -> {
-            ui.columnHeader(c.getColumnName());
-            if (ui.getRowCount() > 0) {
+            columnNames.add(c.getColumnName());
+            if (ui.getColumnIndex() > 0) {
                 sql.append(", ");
             }
             if (DATE_TYPES.contains(c.getDataType())) {
@@ -204,24 +206,74 @@ public class DbinManager {
             } else {
                 sql.append("\"").append(c.getColumnName()).append("\"");
             }
-            ui.increaseRowCount();
+            ui.increaseColumnIndex();
         });
-        ui.tableRowClose();
 
-        sql.append(" from ").append(owner).append(".\"").append(tableName).append("\" order by 1");
+        sql.append(" from ").append(owner).append(".\"").append(tableName).append("\"");
+
+        ui.resetColumnIndex();
+        if (columnName != null) {
+            columnName.forEach(name -> {
+                if (ui.getColumnIndex() == 0) {
+                    sql.append(" where ");
+                } else {
+                    sql.append(" and ");
+                }
+                sql.append("\"").append(name).append("\"");
+                var value = columnValue.get(ui.getColumnIndex());
+                if (value.endsWith("%")) {
+                    sql.append(" like '").append(value).append("'");
+                } else {
+                    sql.append(" = '").append(value).append("'");
+                }
+                var i = columnNames.indexOf(name);
+                if (i > -1) {
+                    columnNames.set(i, columnNames.get(i) + "=" + value);
+                }
+                ui.increaseColumnIndex();
+            });
+        }
+        sql.append(" order by 1");
 
         var data = dbinRepo.getData(columns, sql.toString());
         log.info("data: {}", data);
 
+        ui.tableRowOpen();
+        columnNames.forEach(ui::columnHeader);
+        ui.tableRowClose();
+
         ui.resetRowCount();
         data.forEach(row -> {
             ui.tableRowOpen();
-            row.forEach(ui::tableData);
+            ui.resetColumnIndex();
+            row.forEach(column -> {
+                var columnDef = columns.get(ui.getColumnIndex());
+                String value;
+                if (DATE_TYPES.contains(columnDef.getDataType())) {
+                    value = column;
+                } else if (column == null) {
+                    value = null;
+                } else {
+                    value = ui.anchor(
+                            ui.tabDataUrl(owner, tableName)
+                                    + ui.addParameter("columnName", columnDef.getColumnName())
+                                    + ui.addParameter("columnValue", column)
+                            , column
+                    );
+                }
+                ui.tableData(value);
+                ui.increaseColumnIndex();
+            });
             ui.tableRowClose();
         });
 
         ui.tableClose();
         ui.showRowCount();
+
+        var rows = getTableSize(owner, tableName);
+        if (ui.getRowCount() < rows) {
+            bottomLink(ui.tabDataUrl(owner, tableName), "Show all (" + rows + ")");
+        }
 
         showReferrers(owner, getPrimaryKeyName(owner, tableName), null);
 
