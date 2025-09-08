@@ -31,6 +31,11 @@ public class DbinRepo {
         return jdbcTemplate.queryForObject(sql, Long.class);
     }
 
+    public List<String> getUsers() {
+        var sql = "select username from all_users order by 1";
+        return jdbcTemplate.queryForList(sql, String.class);
+    }
+
     public List<List<String>> getData(List<AllTabColumns> columns, String sql) {
         log.info("get data columns {} using query {}", columns, sql);
         List<List<String>> rows = new ArrayList<>();

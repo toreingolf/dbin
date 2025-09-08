@@ -13,6 +13,7 @@ public class DbinUi {
     public static final String METHOD_OBJECTS = "objects";
     public static final String METHOD_TABDEF = "tabDef";
     public static final String METHOD_TABDATA = "tabData";
+    public static final String METHOD_USERS = "users";
 
     public static final String DATETIME_FORMAT = "dd.MM.yyyy HH:mm";
 
@@ -145,10 +146,13 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
 
     public void showRowCount() {
         if (rowCount > 0) {
-            page.append("<p>");
-            page.append(plainText("Rows: " + rowCount));
-            page.append("&nbsp;<p>");
+            page.append("<p>").append(plainText("Rows: " + rowCount)).append("&nbsp;<p>");
         }
+    }
+
+    public void showRowCount(long value) {
+        rowCount = value;
+        showRowCount();
     }
 
     public String tableHeader(String owner, String tableName, String method) {
@@ -178,8 +182,13 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
         return addParameter(name, value, "&");
     }
 
+    public String anchor(String url, String text, String attr) {
+        return "<a href=\"" + url + "\"" + (attr == null ? "" : attr) + ">" + text + "</a>";
+
+    }
+
     public String anchor(String url, String text) {
-        return "<a href=\"" + url + "\">" + text + "</a>";
+        return anchor(url, text, null);
     }
 
     public String anchor(String url, Long number) {

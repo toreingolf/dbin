@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_OBJECTS;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDATA;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDEF;
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_USERS;
 
 @Controller()
 @Slf4j
@@ -52,5 +53,10 @@ public class DbinController {
             @RequestParam(name = "tableName", required = false) String tableName) {
         log.info("tabData for table {} owned by {}", tableName, owner);
         return dbinManager.getTabData(owner, tableName);
+    }
+
+    @GetMapping(METHOD_USERS)
+    public @ResponseBody String users() {
+        return dbinManager.users();
     }
 }

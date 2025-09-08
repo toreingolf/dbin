@@ -89,6 +89,11 @@ public class DbinManager {
         ui.tableClose();
         ui.showRowCount();
 
+        objectListLink(owner, "View");
+        objectListLink(owner, "Table");
+        objectListLink(owner, "Package");
+        bottomLink("users", "Users");
+
         ui.htmlClose();
 
         return ui.getPage();
@@ -225,6 +230,29 @@ public class DbinManager {
         return ui.getPage();
     }
 
+    public String users() {
+        String title = "Users";
+
+        ui.htmlOpen(title);
+
+        var users = dbinRepo.getUsers();
+
+        users.forEach(user -> ui.p(
+                ui.anchor(
+                        "objects" + ui.addParameter("owner", user, "?")
+                        , user
+                        , " class=\"U\""
+                )
+                        + "<br>"
+        ));
+
+        ui.showRowCount(users.size());
+
+        ui.htmlClose();
+
+        return ui.getPage();
+    }
+
     private void showReferrers(String owner, String pkName, String pkValue) {
         ui.resetRowCount();
         var constraints = allConstraintsRepo.findByOwnerAndTargetConstraintNameAndConstraintType(owner, pkName, "R");
@@ -311,5 +339,18 @@ public class DbinManager {
 
     private Long getTableSize(String owner, String tableName) {
         return dbinRepo.getTableSize(owner, tableName);
+    }
+
+    private void bottomLink(String url, String text) {
+        ui.p(ui.anchor(url, text, " class=\"U\"") + " &nbsp; ");
+    }
+
+    private void objectListLink(String owner, String objectType) {
+        bottomLink(
+                "objects"
+                        + ui.addParameter("owner", owner, "?")
+                        + ui.addParameter("objectType", objectType.toUpperCase())
+                , objectType + "s"
+        );
     }
 }
