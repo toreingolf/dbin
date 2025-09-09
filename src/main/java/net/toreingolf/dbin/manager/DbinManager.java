@@ -2,6 +2,7 @@ package net.toreingolf.dbin.manager;
 
 import lombok.extern.slf4j.Slf4j;
 import net.toreingolf.dbin.domain.AllConsColumns;
+import net.toreingolf.dbin.domain.AllConstraints;
 import net.toreingolf.dbin.domain.AllObjects;
 import net.toreingolf.dbin.domain.AllTabColumns;
 import net.toreingolf.dbin.domain.ConstraintTypeComparator;
@@ -185,7 +186,10 @@ public class DbinManager {
 
         ui.tableOpen(1, 0, 2);
 
-        List<AllTabColumns> columns = allTabColumnsRepo.findByOwnerAndTableName(owner, tableName, COLUMN_SORT);
+        var pkName = getPrimaryKeyName(owner, tableName);
+        var pkColumn = getConstraintColumns(owner, pkName);
+        var columns = allTabColumnsRepo.findByOwnerAndTableName(owner, tableName, COLUMN_SORT);
+
         StringBuilder sql = new StringBuilder("select ");
         List<String> columnNames = new ArrayList<>();
 
@@ -212,6 +216,8 @@ public class DbinManager {
         sql.append(" from ").append(owner).append(".\"").append(tableName).append("\"");
 
         ui.resetColumnIndex();
+        ui.setPkValue(null);
+
         if (columnName != null) {
             columnName.forEach(name -> {
                 if (ui.getColumnIndex() == 0) {
@@ -220,15 +226,21 @@ public class DbinManager {
                     sql.append(" and ");
                 }
                 sql.append("\"").append(name).append("\"");
+
                 var value = columnValue.get(ui.getColumnIndex());
                 if (value.endsWith("%")) {
                     sql.append(" like '").append(value).append("'");
                 } else {
                     sql.append(" = '").append(value).append("'");
                 }
+
                 var i = columnNames.indexOf(name);
                 if (i > -1) {
                     columnNames.set(i, columnNames.get(i) + "=" + value);
+                }
+
+                if (name.equals(pkColumn)) {
+                    ui.setPkValue(value);
                 }
                 ui.increaseColumnIndex();
             });
@@ -242,6 +254,8 @@ public class DbinManager {
         columnNames.forEach(ui::columnHeader);
         ui.tableRowClose();
 
+        var foreignKeys = getForeignKeys(owner, tableName);
+
         ui.resetRowCount();
         data.forEach(row -> {
             ui.tableRowOpen();
@@ -254,12 +268,21 @@ public class DbinManager {
                 } else if (column == null) {
                     value = null;
                 } else {
-                    value = ui.anchor(
-                            ui.tabDataUrl(owner, tableName)
-                                    + ui.addParameter("columnName", columnDef.getColumnName())
-                                    + ui.addParameter("columnValue", column)
-                            , column
-                    );
+                    var fkCandidate = foreignKeys
+                            .stream()
+                            .filter(c -> getConstraintColumns(owner, c.getConstraintName()).equals(columnDef.getColumnName()))
+                            .findFirst();
+                    if (fkCandidate.isPresent()) {
+                        var fk = fkCandidate.get();
+                        value = tabDataFilterLink(
+                                fk.getTargetOwner()
+                                , getConstraintTarget(owner, fk.getConstraintName())
+                                , getConstraintColumns(fk.getTargetOwner(), fk.getTargetConstraintName())
+                                , column
+                        );
+                    } else {
+                        value = tabDataFilterLink(owner, tableName, columnDef.getColumnName(), column);
+                    }
                 }
                 ui.tableData(value);
                 ui.increaseColumnIndex();
@@ -275,7 +298,7 @@ public class DbinManager {
             bottomLink(ui.tabDataUrl(owner, tableName), "Show all (" + rows + ")");
         }
 
-        showReferrers(owner, getPrimaryKeyName(owner, tableName), null);
+        showReferrers(owner, pkName, ui.getPkValue());
 
         ui.htmlClose();
 
@@ -309,14 +332,24 @@ public class DbinManager {
         ui.resetRowCount();
         var constraints = allConstraintsRepo.findByOwnerAndTargetConstraintNameAndConstraintType(owner, pkName, "R");
         constraints.forEach(c -> {
+
             if (ui.getRowCount() == 0) {
                 ui.header("Referrers", 3);
+
                 if (pkValue != null) {
                     ui.tableOpen(1, 0, 2);
                 } else {
                     ui.tableOpen(0, 0, 4);
                 }
-                ui.columnHeaders("Table name", "Constraint name", "Column name");
+
+                ui.tableRowOpen();
+                ui.columnHeader("Table name");
+                ui.columnHeader("Constraint name");
+                ui.columnHeader("Column name");
+                if (pkValue != null) {
+                    ui.columnHeader("Column value");
+                }
+                ui.tableRowClose();
             }
 
             var columns = getConstraintColumns(owner, c.getConstraintName());
@@ -325,6 +358,9 @@ public class DbinManager {
             ui.tableData(tabDefLink(owner, c.getTableName()));
             ui.tableData(c.getConstraintName());
             ui.tableData(columns);
+            if (pkValue != null) {
+                ui.tableData(tabDataFilterLink(owner, c.getTableName(), columns, pkValue));
+            }
             ui.tableRowClose();
         });
 
@@ -337,6 +373,13 @@ public class DbinManager {
     private String getPrimaryKeyName(String owner, String tableName) {
         var pk = allConstraintsRepo.findByOwnerAndTableNameAndConstraintType(owner, tableName, "P");
         return pk != null ? pk.getConstraintName() : "";
+    }
+
+    private List<AllConstraints> getForeignKeys(String owner, String tableName) {
+        return allConstraintsRepo.findByOwnerAndTableName(owner, tableName)
+                .stream()
+                .filter(c -> "R".equals(c.getConstraintType()))
+                .toList();
     }
 
     private String getTableComments(String owner, String tableName) {
@@ -387,6 +430,15 @@ public class DbinManager {
 
     private String tabDataLink(String owner, String tableName) {
         return ui.anchor(ui.tabDataUrl(owner, tableName), getTableSize(owner, tableName));
+    }
+
+    private String tabDataFilterLink(String owner, String tableName, String columnName, String value) {
+        return ui.anchor(
+                ui.tabDataUrl(owner, tableName)
+                        + ui.addParameter("columnName", columnName)
+                        + ui.addParameter("columnValue", value)
+                , value
+        );
     }
 
     private Long getTableSize(String owner, String tableName) {

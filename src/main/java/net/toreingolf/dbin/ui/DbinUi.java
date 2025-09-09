@@ -1,6 +1,7 @@
 package net.toreingolf.dbin.ui;
 
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.stereotype.Component;
 
 import java.text.SimpleDateFormat;
@@ -40,6 +41,11 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
 
     @Getter
     private int columnIndex = 0;
+
+    @Getter
+    @Setter
+    private String pkValue = null;
+
 
     public String getPage() {
         return page.toString();
