@@ -13,6 +13,7 @@ import static net.toreingolf.dbin.ui.DbinUi.METHOD_OBJECTS;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDATA;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDEF;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_USERS;
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_VIEWDEF;
 
 @Controller()
 @Slf4j
@@ -39,6 +40,14 @@ public class DbinController {
             @RequestParam(name = "objectType", required = false) String objectType) {
         log.info("objects of type {} for owner {}", objectType, owner);
         return dbinManager.getObjects(owner, objectType == null ? DEFAULT_OBJECT_TYPE : objectType);
+    }
+
+    @GetMapping(METHOD_VIEWDEF)
+    public @ResponseBody String getViewDef(
+            @RequestParam(name = "owner", required = false) String owner,
+            @RequestParam(name = "viewName", required = false) String viewName) {
+        log.info("viewDef for view {} owned by {}", viewName, owner);
+        return dbinManager.getViewDef(owner, viewName);
     }
 
     @GetMapping(METHOD_TABDEF)

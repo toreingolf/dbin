@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-public class IdConstraintName {
+public class IdViewName {
     private String owner;
-    private String constraintName;
+    private String viewName;
 }

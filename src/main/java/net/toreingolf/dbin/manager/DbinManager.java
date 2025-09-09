@@ -8,12 +8,14 @@ import net.toreingolf.dbin.domain.AllTabColumns;
 import net.toreingolf.dbin.domain.ConstraintTypeComparator;
 import net.toreingolf.dbin.domain.IdTableName;
 import net.toreingolf.dbin.domain.IdTableNameColumnName;
+import net.toreingolf.dbin.domain.IdViewName;
 import net.toreingolf.dbin.persistence.AllColCommentsRepo;
 import net.toreingolf.dbin.persistence.AllConsColumnsRepo;
 import net.toreingolf.dbin.persistence.AllConstraintsRepo;
 import net.toreingolf.dbin.persistence.AllObjectsRepo;
 import net.toreingolf.dbin.persistence.AllTabColumnsRepo;
 import net.toreingolf.dbin.persistence.AllTabCommentsRepo;
+import net.toreingolf.dbin.persistence.AllViewsRepo;
 import net.toreingolf.dbin.persistence.DbinRepo;
 import net.toreingolf.dbin.ui.DbinUi;
 import org.springframework.data.domain.Sort;
@@ -34,6 +36,7 @@ public class DbinManager {
     private final AllColCommentsRepo allColCommentsRepo;
     private final AllConstraintsRepo allConstraintsRepo;
     private final AllConsColumnsRepo allConsColumnsRepo;
+    private final AllViewsRepo allViewsRepo;
     private final DbinRepo dbinRepo;
 
     private final DbinUi ui;
@@ -54,6 +57,7 @@ public class DbinManager {
                        AllColCommentsRepo allColCommentsRepo,
                        AllConstraintsRepo allConstraintsRepo,
                        AllConsColumnsRepo allConsColumnsRepo,
+                       AllViewsRepo allViewsRepo,
                        DbinRepo dbinRepo,
                        DbinUi dbinUi) {
         this.allObjectsRepo = allObjectsRepo;
@@ -62,6 +66,7 @@ public class DbinManager {
         this.allColCommentsRepo = allColCommentsRepo;
         this.allConstraintsRepo = allConstraintsRepo;
         this.allConsColumnsRepo = allConsColumnsRepo;
+        this.allViewsRepo = allViewsRepo;
         this.dbinRepo = dbinRepo;
         this.ui = dbinUi;
     }
@@ -80,7 +85,11 @@ public class DbinManager {
         ui.columnHeaders("Name", "Rows", "Created", "Updated", "Status", "Comment");
         objects.forEach(o -> {
             ui.tableRowOpen();
-            ui.tableData(ui.tabDefLink(owner, o.getObjectName()));
+            ui.tableData(
+                    "VIEW".equals(objectType)
+                            ? ui.viewDefLink(owner, o.getObjectName())
+                            : ui.tabDefLink(owner, o.getObjectName())
+            );
             ui.tableData(tabDataLink(owner, o.getObjectName()), "align=right");
             ui.tableData(ui.dateString(o.getCreated()));
             ui.tableData(ui.dateString(o.getLastDdlTime()));
@@ -93,8 +102,23 @@ public class DbinManager {
 
         objectListLink(owner, "View");
         objectListLink(owner, "Table");
-        objectListLink(owner, "Package");
+        //objectListLink(owner, "Package");
         bottomLink("users", "Users");
+
+        ui.htmlClose();
+
+        return ui.getPage();
+    }
+
+    public String getViewDef(String owner, String viewName) {
+        log.info("viewDef for view {} owned by {}", viewName, owner);
+
+        String title = "View " + owner + "." + viewName;
+
+        ui.htmlOpen(title);
+
+        var view = allViewsRepo.findById(new IdViewName(owner, viewName));
+        ui.p("<pre>" + view.getText() + "</pre>");
 
         ui.htmlClose();
 
@@ -137,7 +161,7 @@ public class DbinManager {
             ui.tableData(c.getDataDefault());
             ui.tableData(
                     ui.formHidden("fieldName", c.getColumnName())
-                            + ui.formText("fieldValue", null, 30, 1000)
+                            + ui.formText("fieldValue", 30, 1000)
             );
             ui.tableData(getTableColumnComments(owner, tableName, c.getColumnName()));
             ui.tableRowClose();

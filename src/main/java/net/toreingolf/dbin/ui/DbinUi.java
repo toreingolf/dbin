@@ -12,6 +12,7 @@ import java.util.Date;
 public class DbinUi {
 
     public static final String METHOD_OBJECTS = "objects";
+    public static final String METHOD_VIEWDEF = "viewDef";
     public static final String METHOD_TABDEF = "tabDef";
     public static final String METHOD_TABDATA = "tabData";
     public static final String METHOD_USERS = "users";
@@ -224,7 +225,7 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
         return "<input type=\"hidden\" name=\"" + fieldName + "\" value=\"" + fieldValue + "\"/>";
     }
 
-    public String formText(String fieldName, String fieldValue, int size, int maxLength) {
+    public String formText(String fieldName, int size, int maxLength) {
         return "<input type=\"text\" name=\"" + fieldName + "\" size=\"" + size + "\" maxlength=\"" + maxLength + "\"/>";
     }
 
@@ -256,5 +257,9 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
 
     public String tabDefLink(String owner, String tableName) {
         return anchor(tabDefUrl(owner, tableName), tableName);
+    }
+
+    public String viewDefLink(String owner, String viewName) {
+        return anchor(objUrl(owner, viewName, METHOD_VIEWDEF, "viewName"), viewName);
     }
 }
