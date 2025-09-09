@@ -15,6 +15,7 @@ public class DbinUi {
     public static final String METHOD_VIEWDEF = "viewDef";
     public static final String METHOD_TABDEF = "tabDef";
     public static final String METHOD_TABDATA = "tabData";
+    public static final String METHOD_SOURCE = "source";
     public static final String METHOD_USERS = "users";
 
     public static final String DATETIME_FORMAT = "dd.MM.yyyy HH:mm";
@@ -77,12 +78,12 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
         page.append(text);
     }
 
+    public String headerText(String text, int size) {
+        return "<font face=\"Arial,Helvetica\" size=" + size + " color=#000><b>" + text + "</b></font>";
+    }
+
     public void header(String text, int size) {
-        page.append("<p><font face=\"Arial,Helvetica\" size=");
-        page.append(size);
-        page.append(" color=#000><b>");
-        page.append(text);
-        page.append("</b></font><br>");
+        page.append("<p>").append(headerText(text, size)).append("<br>");
     }
 
     public void header(String text) {
@@ -173,19 +174,31 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
         columnIndex = 0;
     }
 
+    public String ownerLink(String owner, String objectType) {
+        return anchor(METHOD_OBJECTS
+                        + addParameter("owner", owner, "?")
+                        + addParameter("objectType", objectType)
+                , owner
+        );
+    }
+
     public String tableHeader(String owner, String tableName, String method) {
         return "TABLE "
-                + anchor(METHOD_OBJECTS
-                        + addParameter("owner", owner, "?")
-                        + addParameter("objectType", "TABLE")
-                , owner
-                )
+                + ownerLink(owner, "TABLE")
                 + "."
                 + tabLink(owner, tableName, method);
     }
 
+    private String formattedText(String text, String cssClass) {
+        return "<a class=\"" + cssClass + "\">" + text + "</a>";
+    }
+
     public String plainText(String text) {
-        return "<a class=\"N\">" + text + "</a>";
+        return formattedText(text, "N");
+    }
+
+    public String navText(String text) {
+        return formattedText(text, "NAV");
     }
 
     public String dateString(Date date) {

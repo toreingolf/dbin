@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.toreingolf.dbin.domain.AllConsColumns;
 import net.toreingolf.dbin.domain.AllConstraints;
 import net.toreingolf.dbin.domain.AllObjects;
+import net.toreingolf.dbin.domain.AllSource;
 import net.toreingolf.dbin.domain.AllTabColumns;
 import net.toreingolf.dbin.domain.ConstraintTypeComparator;
 import net.toreingolf.dbin.domain.IdTableName;
@@ -13,6 +14,7 @@ import net.toreingolf.dbin.persistence.AllColCommentsRepo;
 import net.toreingolf.dbin.persistence.AllConsColumnsRepo;
 import net.toreingolf.dbin.persistence.AllConstraintsRepo;
 import net.toreingolf.dbin.persistence.AllObjectsRepo;
+import net.toreingolf.dbin.persistence.AllSourceRepo;
 import net.toreingolf.dbin.persistence.AllTabColumnsRepo;
 import net.toreingolf.dbin.persistence.AllTabCommentsRepo;
 import net.toreingolf.dbin.persistence.AllViewsRepo;
@@ -26,6 +28,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_SOURCE;
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDATA;
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDEF;
+
 @Service
 @Slf4j
 public class DbinManager {
@@ -37,16 +43,18 @@ public class DbinManager {
     private final AllConstraintsRepo allConstraintsRepo;
     private final AllConsColumnsRepo allConsColumnsRepo;
     private final AllViewsRepo allViewsRepo;
+    private final AllSourceRepo allSourceRepo;
     private final DbinRepo dbinRepo;
 
     private final DbinUi ui;
 
     private static final Sort OBJECT_SORT = Sort.by(Sort.Direction.ASC, "objectName");
     private static final Sort COLUMN_SORT = Sort.by(Sort.Direction.ASC, "columnId");
+    private static final Sort LINE_SORT = Sort.by(Sort.Direction.ASC, "line");
 
-    private static final String DATE_TYPE_1	= "DATE";
-    private static final String DATE_TYPE_2	= "TIMESTAMP(6)";
-    private static final String DATE_TYPE_3	= "TIMESTAMP(6) WITH TIME ZONE";
+    private static final String DATE_TYPE_1 = "DATE";
+    private static final String DATE_TYPE_2 = "TIMESTAMP(6)";
+    private static final String DATE_TYPE_3 = "TIMESTAMP(6) WITH TIME ZONE";
     private static final List<String> DATE_TYPES = List.of(DATE_TYPE_1, DATE_TYPE_2, DATE_TYPE_3);
 
     public static final String DATETIME_FORMAT_SQL = "dd.mm.yyyy hh24:mi";
@@ -58,6 +66,7 @@ public class DbinManager {
                        AllConstraintsRepo allConstraintsRepo,
                        AllConsColumnsRepo allConsColumnsRepo,
                        AllViewsRepo allViewsRepo,
+                       AllSourceRepo allSourceRepo,
                        DbinRepo dbinRepo,
                        DbinUi dbinUi) {
         this.allObjectsRepo = allObjectsRepo;
@@ -67,11 +76,15 @@ public class DbinManager {
         this.allConstraintsRepo = allConstraintsRepo;
         this.allConsColumnsRepo = allConsColumnsRepo;
         this.allViewsRepo = allViewsRepo;
+        this.allSourceRepo = allSourceRepo;
         this.dbinRepo = dbinRepo;
         this.ui = dbinUi;
     }
 
     public String getObjects(String owner, String objectType) {
+
+        var isTable = "TABLE".equals(objectType);
+        var isView = "VIEW".equals(objectType);
 
         log.info("objects of type {} for owner {}", objectType, owner);
 
@@ -82,19 +95,47 @@ public class DbinManager {
         ui.header(title);
 
         ui.tableOpen(0, 0, 4);
-        ui.columnHeaders("Name", "Rows", "Created", "Updated", "Status", "Comment");
+        ui.tableRowOpen();
+        ui.columnHeader("Name");
+        if (isTable || isView) {
+            ui.columnHeader("Rows");
+        }
+        ui.columnHeader("Created");
+        ui.columnHeader("Updated");
+        ui.columnHeader("Status");
+        if (isTable) {
+            ui.columnHeader("Comment");
+        }
+        ui.tableRowClose();
+
+        ui.resetRowCount();
         objects.forEach(o -> {
             ui.tableRowOpen();
-            ui.tableData(
-                    "VIEW".equals(objectType)
-                            ? ui.viewDefLink(owner, o.getObjectName())
-                            : ui.tabDefLink(owner, o.getObjectName())
-            );
-            ui.tableData(tabDataLink(owner, o.getObjectName()), "align=right");
+
+            if (isView) {
+                ui.tableData(ui.viewDefLink(owner, o.getObjectName()));
+            } else if (isTable) {
+                ui.tableData(ui.tabDefLink(owner, o.getObjectName()));
+            } else if ("PACKAGE".equals(objectType)) {
+                ui.tableData(
+                        ui.anchor(ui.objUrl(owner, o.getObjectName(), METHOD_SOURCE, "packageName")
+                                , o.getObjectName()
+                        )
+                );
+            }
+
+            if (isTable || isView) {
+                ui.tableData(tabDataLink(owner, o.getObjectName()), "align=right");
+            }
+
             ui.tableData(ui.dateString(o.getCreated()));
             ui.tableData(ui.dateString(o.getLastDdlTime()));
             ui.tableData(o.getStatus());
-            ui.tableData(getTableComments(owner, o.getObjectName()));
+
+            if (isTable) {
+                ui.tableData(getTableComments(owner, o.getObjectName()));
+            }
+
             ui.tableRowClose();
         });
         ui.tableClose();
@@ -102,7 +143,7 @@ public class DbinManager {
 
         objectListLink(owner, "View");
         objectListLink(owner, "Table");
-        //objectListLink(owner, "Package");
+        objectListLink(owner, "Package");
         bottomLink("users", "Users");
 
         ui.htmlClose();
@@ -131,7 +172,7 @@ public class DbinManager {
         String title = "Table " + owner + "." + tableName;
 
         ui.htmlOpen(title);
-        ui.header(ui.tableHeader(owner, tableName, DbinUi.METHOD_TABDATA));
+        ui.header(ui.tableHeader(owner, tableName, METHOD_TABDATA));
 
         var table = allObjectsRepo.findByOwnerAndObjectName(owner, tableName);
 
@@ -150,7 +191,7 @@ public class DbinManager {
         ui.tableOpen(0, 0, 4);
         ui.columnHeaders("Column Name", "Null?", "Data Type", "Length", "Default", "Search Criteria", "Comment");
 
-        ui.formOpen(DbinUi.METHOD_TABDATA);
+        ui.formOpen(METHOD_TABDATA);
 
         columns.forEach(c -> {
             ui.tableRowOpen();
@@ -222,7 +263,7 @@ public class DbinManager {
         String title = "Table " + owner + "." + tableName;
 
         ui.htmlOpen(title);
-        ui.header(ui.tableHeader(owner, tableName, DbinUi.METHOD_TABDEF) + "<br>");
+        ui.header(ui.tableHeader(owner, tableName, METHOD_TABDEF) + "<br>");
 
         ui.tableOpen(1, 0, 2);
 
@@ -346,6 +387,114 @@ public class DbinManager {
         showReferrers(owner, pkName, ui.getPkValue());
 
         ui.htmlClose();
+
+        return ui.getPage();
+    }
+
+    public String getSource(String owner, String packageName, String part, String mode) {
+
+        String bodyDesc;
+        String bodyClass;
+        String headerDesc;
+        String headerClass;
+
+        String sourceType;
+
+        String formattedDesc;
+        String formattedClass;
+        String unformattedDesc;
+        String unformattedClass;
+
+        boolean unformatted = "U".equals(mode);
+
+        if ("H".equals(part)) { // show package header
+
+            bodyDesc = "body";
+            bodyClass = "NAV";
+            headerDesc = "HEADER";
+            headerClass = "HI";
+
+            sourceType = "PACKAGE";
+
+        } else { // show package body
+
+            bodyDesc = "BODY";
+            bodyClass = "HI";
+            headerDesc = "header";
+            headerClass = "NAV";
+
+            sourceType = "PACKAGE BODY";
+        }
+
+        if (unformatted) { // show source code unformatted
+
+            formattedDesc = "formatted";
+            formattedClass = "NAV";
+            unformattedDesc = "UNFORMATTED";
+            unformattedClass = "HI";
+
+        } else { // format the output
+
+            formattedDesc = "FORMATTED";
+            formattedClass = "HI";
+            unformattedDesc = "unformatted";
+            unformattedClass = "NAV";
+        }
+
+        var url = "source"
+                + ui.addParameter("owner", owner, "?")
+                + ui.addParameter("packageName", packageName);
+
+        String title = "Package " + owner + "." + packageName;
+
+        ui.htmlOpen(title);
+
+        ui.p(
+                ui.headerText(
+                        "Package "
+                                + ui.ownerLink(owner, "PACKAGE")
+                                + "."
+                                + packageName
+                        , 4
+                )
+                        + ui.navText(" ( ")
+                        + sourceLink(url, "B", mode, bodyDesc, bodyClass)
+                        + ui.navText(" / ")
+                        + sourceLink(url, "H", mode, headerDesc, headerClass)
+                        + ui.navText(" , ")
+                        + sourceLink(url, part, "F", formattedDesc, formattedClass)
+                        + ui.navText(" / ")
+                        + sourceLink(url, part, "U", unformattedDesc, unformattedClass)
+                        + ui.navText(" )")
+                        + "<br><p>"
+        );
+
+        List<AllSource> source = allSourceRepo.findByOwnerAndNameAndType(owner, packageName, sourceType, LINE_SORT);
+
+        if (unformatted) {
+            ui.p("<pre>");
+        }
+
+        source.forEach(s -> {
+            if (unformatted) {
+                ui.p(s.getText());
+            } else {
+                ui.p(
+                        ui.plainText(String.format("%05d", s.getLine())
+                                + " &nbsp; "
+                                + s.getText()
+                                .replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+                                .replace("<", "&lt;")
+                                .replace(">", "&gt;")
+                                + "<br>"
+                        )
+                );
+            }
+        });
+
+        if (unformatted) {
+            ui.p("</pre>");
+        }
 
         return ui.getPage();
     }
@@ -500,6 +649,16 @@ public class DbinManager {
                         + ui.addParameter("owner", owner, "?")
                         + ui.addParameter("objectType", objectType.toUpperCase())
                 , objectType + "s"
+        );
+    }
+
+    private String sourceLink(String url, String part, String mode, String text, String cssClass) {
+        return ui.anchor(
+                url
+                        + ui.addParameter("part", part)
+                        + ui.addParameter("mode", mode)
+                , text
+                , " class=\"" + cssClass + "\""
         );
     }
 }

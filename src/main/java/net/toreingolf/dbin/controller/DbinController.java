@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.util.List;
 
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_OBJECTS;
+import static net.toreingolf.dbin.ui.DbinUi.METHOD_SOURCE;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDATA;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_TABDEF;
 import static net.toreingolf.dbin.ui.DbinUi.METHOD_USERS;
@@ -66,6 +67,16 @@ public class DbinController {
             @RequestParam(name = "fieldValue", required = false) List<String> fieldValue) {
         log.info("tabData for table {} owned by {}", tableName, owner);
         return dbinManager.getTabData(owner, tableName, fieldName, fieldValue);
+    }
+
+    @GetMapping(METHOD_SOURCE)
+    public @ResponseBody String getSource(
+            @RequestParam(name = "owner", required = false) String owner,
+            @RequestParam(name = "packageName", required = false) String packageName,
+            @RequestParam(name = "part", required = false) String part,
+            @RequestParam(name = "mode", required = false) String mode) {
+        log.info("source for package {} owned by {}", packageName, owner);
+        return dbinManager.getSource(owner, packageName, part, mode);
     }
 
     @GetMapping(METHOD_USERS)
