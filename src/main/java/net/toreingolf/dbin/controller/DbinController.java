@@ -53,10 +53,10 @@ public class DbinController {
     public @ResponseBody String tabData(
             @RequestParam(name = "owner", required = false) String owner,
             @RequestParam(name = "tableName", required = false) String tableName,
-            @RequestParam(name = "columnName", required = false) List<String> columnName,
-            @RequestParam(name = "columnValue", required = false) List<String> columnValue) {
+            @RequestParam(name = "fieldName", required = false) List<String> fieldName,
+            @RequestParam(name = "fieldValue", required = false) List<String> fieldValue) {
         log.info("tabData for table {} owned by {}", tableName, owner);
-        return dbinManager.getTabData(owner, tableName, columnName, columnValue);
+        return dbinManager.getTabData(owner, tableName, fieldName, fieldValue);
     }
 
     @GetMapping(METHOD_USERS)

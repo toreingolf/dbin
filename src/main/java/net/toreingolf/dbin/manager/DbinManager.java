@@ -6,7 +6,6 @@ import net.toreingolf.dbin.domain.AllConstraints;
 import net.toreingolf.dbin.domain.AllObjects;
 import net.toreingolf.dbin.domain.AllTabColumns;
 import net.toreingolf.dbin.domain.ConstraintTypeComparator;
-import net.toreingolf.dbin.domain.IdConstraintName;
 import net.toreingolf.dbin.domain.IdTableName;
 import net.toreingolf.dbin.domain.IdTableNameColumnName;
 import net.toreingolf.dbin.persistence.AllColCommentsRepo;
@@ -22,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -124,7 +124,10 @@ public class DbinManager {
 
         ui.header("Columns", 3);
         ui.tableOpen(0, 0, 4);
-        ui.columnHeaders("Column Name", "Null?", "Data Type", "Length", "Default", "Search Criteria", "Comments");
+        ui.columnHeaders("Column Name", "Null?", "Data Type", "Length", "Default", "Search Criteria", "Comment");
+
+        ui.formOpen(DbinUi.METHOD_TABDATA);
+
         columns.forEach(c -> {
             ui.tableRowOpen();
             ui.tableData(c.getColumnName());
@@ -132,10 +135,23 @@ public class DbinManager {
             ui.tableData(c.getDataType());
             ui.tableData(c.getDataLength());
             ui.tableData(c.getDataDefault());
-            ui.tableData("");
+            ui.tableData(
+                    ui.formHidden("fieldName", c.getColumnName())
+                            + ui.formText("fieldValue", null, 30, 1000)
+            );
             ui.tableData(getTableColumnComments(owner, tableName, c.getColumnName()));
             ui.tableRowClose();
         });
+
+        ui.tableRowOpen();
+        ui.p(
+                ui.formHidden("owner", owner)
+                        + ui.formHidden("tableName", tableName)
+        );
+        ui.tableData(ui.formSubmit("action", "Query"), " colspan=6 align=\"right\"");
+        ui.tableRowClose();
+        ui.formClose();
+
         ui.tableClose();
         ui.showRowCount();
 
@@ -176,7 +192,7 @@ public class DbinManager {
         return ui.getPage();
     }
 
-    public String getTabData(String owner, String tableName, List<String> columnName, List<String> columnValue) {
+    public String getTabData(String owner, String tableName, List<String> fieldName, List<String> fieldValue) {
         log.info("tabData for table {} owned by {}", tableName, owner);
 
         String title = "Table " + owner + "." + tableName;
@@ -218,29 +234,34 @@ public class DbinManager {
         ui.resetColumnIndex();
         ui.setPkValue(null);
 
-        if (columnName != null) {
-            columnName.forEach(name -> {
-                if (ui.getColumnIndex() == 0) {
-                    sql.append(" where ");
-                } else {
-                    sql.append(" and ");
-                }
-                sql.append("\"").append(name).append("\"");
+        if (fieldName != null) {
+            AtomicInteger conditions = new AtomicInteger();
+            fieldName.forEach(name -> {
+                var value = fieldValue.get(ui.getColumnIndex());
+                log.info("condition: field {} with value {}", name, value);
+                if (value != null && !value.isEmpty()) {
+                    if (conditions.get() == 0) {
+                        sql.append(" where ");
+                    } else {
+                        sql.append(" and ");
+                    }
+                    conditions.getAndIncrement();
+                    sql.append("\"").append(name).append("\"");
 
-                var value = columnValue.get(ui.getColumnIndex());
-                if (value.endsWith("%")) {
-                    sql.append(" like '").append(value).append("'");
-                } else {
-                    sql.append(" = '").append(value).append("'");
-                }
+                    if (value.endsWith("%")) {
+                        sql.append(" like '").append(value).append("'");
+                    } else {
+                        sql.append(" = '").append(value).append("'");
+                    }
 
-                var i = columnNames.indexOf(name);
-                if (i > -1) {
-                    columnNames.set(i, columnNames.get(i) + "=" + value);
-                }
+                    var i = columnNames.indexOf(name);
+                    if (i > -1) {
+                        columnNames.set(i, columnNames.get(i) + (value.endsWith("%") ? " like " : "=") + value);
+                    }
 
-                if (name.equals(pkColumn)) {
-                    ui.setPkValue(value);
+                    if (name.equals(pkColumn)) {
+                        ui.setPkValue(value);
+                    }
                 }
                 ui.increaseColumnIndex();
             });
@@ -393,7 +414,7 @@ public class DbinManager {
 
     private String getConstraintColumns(String owner, String constraintName) {
         log.info("get columns for constraint {}.{}", owner, constraintName);
-        return allConsColumnsRepo.findById(new IdConstraintName(owner, constraintName))
+        return allConsColumnsRepo.findByOwnerAndConstraintName(owner, constraintName)
                 .stream()
                 .map(AllConsColumns::getColumnName)
                 .collect(Collectors.joining(", "));
@@ -432,11 +453,11 @@ public class DbinManager {
         return ui.anchor(ui.tabDataUrl(owner, tableName), getTableSize(owner, tableName));
     }
 
-    private String tabDataFilterLink(String owner, String tableName, String columnName, String value) {
+    private String tabDataFilterLink(String owner, String tableName, String fieldName, String value) {
         return ui.anchor(
                 ui.tabDataUrl(owner, tableName)
-                        + ui.addParameter("columnName", columnName)
-                        + ui.addParameter("columnValue", value)
+                        + ui.addParameter("fieldName", fieldName)
+                        + ui.addParameter("fieldValue", value)
                 , value
         );
     }

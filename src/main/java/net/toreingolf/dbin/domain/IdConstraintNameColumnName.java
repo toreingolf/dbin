@@ -1,7 +1,6 @@
 package net.toreingolf.dbin.domain;
 
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,13 +8,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-@Entity
-public class AllConsColumns {
-    @EmbeddedId
-    private IdConstraintNameColumnName id;
+public class IdConstraintNameColumnName {
+    @Column(insertable=false, updatable=false)
     private String owner;
+    @Column(insertable=false, updatable=false)
     private String constraintName;
+    @Column(insertable=false, updatable=false)
     private String columnName;
-    private String tableName;
-    private Long position;
 }

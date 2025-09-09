@@ -123,7 +123,7 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
     }
 
     public void tableData(String text, String attr) {
-        page.append("<td");
+        page.append("<td valign=top");
         if (attr != null) {
             page.append(" ").append(attr);
         }
@@ -210,6 +210,26 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
 
     public String anchor(String url, Long number) {
         return anchor(url, String.valueOf(number));
+    }
+
+    public void formOpen(String action) {
+        page.append("<form action=\"").append(action).append("\" method=\"get\">");
+    }
+
+    public void formClose() {
+        page.append("</form>");
+    }
+
+    public String formHidden(String fieldName, String fieldValue) {
+        return "<input type=\"hidden\" name=\"" + fieldName + "\" value=\"" + fieldValue + "\"/>";
+    }
+
+    public String formText(String fieldName, String fieldValue, int size, int maxLength) {
+        return "<input type=\"text\" name=\"" + fieldName + "\" size=\"" + size + "\" maxlength=\"" + maxLength + "\"/>";
+    }
+
+    public String formSubmit(String name, String value) {
+        return "<input type=\"submit\" name=\"" + name + "\" value=\"" + value + "\"/>";
     }
 
     public String objUrl(String owner, String objectName, String method, String parameterName) {
