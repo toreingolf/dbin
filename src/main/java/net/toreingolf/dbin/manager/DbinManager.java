@@ -154,9 +154,8 @@ public class DbinManager {
     public String getViewDef(String owner, String viewName) {
         log.info("viewDef for view {} owned by {}", viewName, owner);
 
-        String title = "View " + owner + "." + viewName;
-
-        ui.htmlOpen(title);
+        ui.htmlOpen("View " + owner + "." + viewName);
+        ui.header("View " + ui.ownerLink(owner, "VIEW") + "." + viewName);
 
         var view = allViewsRepo.findById(new IdViewName(owner, viewName));
         ui.p("<pre>" + view.getText() + "</pre>");
@@ -503,6 +502,7 @@ public class DbinManager {
         String title = "Users";
 
         ui.htmlOpen(title);
+        ui.header(title);
 
         var users = dbinRepo.getUsers();
 

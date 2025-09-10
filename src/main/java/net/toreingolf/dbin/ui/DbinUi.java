@@ -183,7 +183,7 @@ A.DIM { text-decoration:none; font-family:Arial; font-weight:Bold; font-size:10p
     }
 
     public String tableHeader(String owner, String tableName, String method) {
-        return "TABLE "
+        return "Table "
                 + ownerLink(owner, "TABLE")
                 + "."
                 + tabLink(owner, tableName, method);
