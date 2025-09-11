@@ -46,7 +46,11 @@ public class DbinRepo {
                     List<String> columnValues = new ArrayList<>();
                     columns.forEach(c -> {
                         try {
-                            columnValues.add(rs.getString(c.getColumnName()));
+                            if ("BLOB".equals(c.getDataType())) {
+                                columnValues.add(null);
+                            } else {
+                                columnValues.add(rs.getString(c.getColumnName()));
+                            }
                         } catch (SQLException e) {
                             throw new RuntimeException(e);
                         }

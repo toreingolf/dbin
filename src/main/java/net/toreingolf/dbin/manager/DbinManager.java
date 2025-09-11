@@ -348,7 +348,7 @@ public class DbinManager {
             row.forEach(column -> {
                 var columnDef = columns.get(ui.getColumnIndex());
                 String value;
-                if (DATE_TYPES.contains(columnDef.getDataType())) {
+                if (DATE_TYPES.contains(columnDef.getDataType()) || "CLOB".equals(columnDef.getDataType())) {
                     value = column;
                 } else if (column == null) {
                     value = null;
